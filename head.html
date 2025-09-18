@@ -12,7 +12,8 @@
     try {
       const path = location.pathname.replace(/\/$/, '') || '/';
       const name = path === '/' ? 'index' : path.replace(/^\//, '').replace(/\//g, '__');
-      const res = await fetch(`/metadata/${name}.json`, { cache: 'no-store' });
+      const base = (window.hlx && window.hlx.codeBasePath) ? window.hlx.codeBasePath : '';
+      const res = await fetch(`${base}/metadata/${name}.json`, { cache: 'no-store' });
       if (!res.ok) return;
       const m = await res.json();
       const ensure = (sel, html) => {
