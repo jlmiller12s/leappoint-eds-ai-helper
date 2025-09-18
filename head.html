@@ -7,3 +7,28 @@
 <script nonce="aem" src="/scripts/aem.js" type="module"></script>
 <script nonce="aem" src="/scripts/scripts.js" type="module"></script>
 <link rel="stylesheet" href="/styles/styles.css"/>
+<script nonce="aem">
+  (async () => {
+    try {
+      const path = location.pathname.replace(/\/$/, '') || '/';
+      const name = path === '/' ? 'index' : path.replace(/^\//, '').replace(/\//g, '__');
+      const res = await fetch(`/metadata/${name}.json`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const m = await res.json();
+      const ensure = (sel, html) => {
+        const el = document.head.querySelector(sel);
+        if (el) { el.outerHTML = html; } else { document.head.insertAdjacentHTML('beforeend', html); }
+      };
+      if (m.title) {
+        if (document.title) { document.title = m.title; } else { document.head.insertAdjacentHTML('beforeend', `<title>${m.title}</title>`); }
+      }
+      if (m.description) ensure('meta[name="description"]', `<meta name="description" content="${m.description}">`);
+      if (m.keywords) ensure('meta[name="keywords"]', `<meta name="keywords" content="${m.keywords}">`);
+      if (m.ogTitle || m.title) ensure('meta[property="og:title"]', `<meta property="og:title" content="${m.ogTitle || m.title}">`);
+      if (m.ogDescription || m.description) ensure('meta[property="og:description"]', `<meta property="og:description" content="${m.ogDescription || m.description}">`);
+      if (m.canonical) ensure('link[rel="canonical"]', `<link rel="canonical" href="${m.canonical}">`);
+    } catch (e) {
+      // swallow errors client-side
+    }
+  })();
+  </script>

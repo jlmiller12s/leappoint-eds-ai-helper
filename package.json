@@ -9,7 +9,8 @@
     "lint": "npm run lint:js && npm run lint:css",
     "lint:fix": "npm run lint:js -- --fix && npm run lint:css -- --fix",
     "metadata:suggest": "node tools/generate-metadata.js --glob \"**/*.html\" --apply=false",
-    "metadata:apply": "node tools/generate-metadata.js --glob \"**/*.html\" --apply=true"
+    "metadata:apply": "node tools/generate-metadata.js --glob \"**/*.html\" --apply=true",
+    "metadata:crawl": "node tools/generate-metadata.js --crawl \"https://main--leappoint-eds-ai-helper--jlmiller12s.aem.page\" --limit=10"
   },
   "repository": {
     "type": "git",

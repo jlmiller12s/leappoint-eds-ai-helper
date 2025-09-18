@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - '**/*.html'
+      - 'head.html'
 
 jobs:
   suggest:
@@ -25,12 +26,15 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          node tools/generate-metadata.js --crawl "https://main--${{ github.event.repository.name }}--${{ github.repository_owner }}.aem.page" --limit=20
           node tools/generate-metadata.js --glob "**/*.html" --apply=false
       - name: Upload suggestions artifact
         uses: actions/upload-artifact@v4
         with:
           name: metadata-suggestions
-          path: metadata/suggestions.json
+          path: |
+            metadata/suggestions.json
+            metadata/*.json
       - name: Comment suggestions on PR
         uses: mshick/add-pr-comment@v2
         with:

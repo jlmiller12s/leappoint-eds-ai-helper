@@ -2,6 +2,7 @@
 // Generates metadata suggestions for HTML pages using OpenAI.
 // Usage:
 //   node tools/generate-metadata.js --glob "**/*.html" --apply=false
+//   node tools/generate-metadata.js --crawl "https://main--leappoint-eds-ai-helper--jlmiller12s.aem.page/" --limit=10
 // Environment:
 //   OPENAI_API_KEY (required)
 const fs = require('fs');
@@ -10,10 +11,12 @@ const { execSync } = require('child_process');
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const result = { glob: '**/*.html', apply: false };
+  const result = { glob: '**/*.html', apply: false, crawl: '', limit: 25 };
   args.forEach((arg) => {
     if (arg.startsWith('--glob=')) result.glob = arg.split('=')[1];
     if (arg.startsWith('--apply=')) result.apply = arg.split('=')[1] === 'true';
+    if (arg.startsWith('--crawl=')) result.crawl = arg.split('=')[1];
+    if (arg.startsWith('--limit=')) result.limit = Number(arg.split('=')[1]) || 25;
   });
   return result;
 }
@@ -67,9 +70,47 @@ function extractMainText(html) {
   return text.slice(0, 8000);
 }
 
+async function fetchHTML(url) {
+  const res = await fetch(url, { headers: { 'User-Agent': 'eds-metadata-bot' } });
+  if (!res.ok) throw new Error(`Fetch failed ${res.status} for ${url}`);
+  return res.text();
+}
+
+function pathToMetaName(p) {
+  if (!p || p === '/') return 'index';
+  return p.replace(/^\//, '').replace(/\/$/, '').replace(/\//g, '__');
+}
+
 async function main() {
-  const { glob: pattern, apply } = parseArgs();
-  const files = globFiles(pattern).filter((f) => f.endsWith('.html'));
+  const { glob: pattern, apply, crawl, limit } = parseArgs();
+  let files = [];
+  if (crawl) {
+    // simple crawl of aem page site map: take homepage and common child links
+    const base = crawl.replace(/\/$/, '');
+    const html = await fetchHTML(base + '/');
+    const hrefs = Array.from(html.matchAll(/href=\"(\/[^\"#? ]*)\"/g)).map((m) => m[1]);
+    const unique = Array.from(new Set(['/'].concat(hrefs))).slice(0, limit);
+    const outDir = path.join(process.cwd(), 'metadata');
+    fs.mkdirSync(outDir, { recursive: true });
+    const overridesPath = path.join(outDir, 'overrides.json');
+    let overrides = {};
+    if (fs.existsSync(overridesPath)) overrides = JSON.parse(fs.readFileSync(overridesPath, 'utf8'));
+    for (const p of unique) {
+      // eslint-disable-next-line no-await-in-loop
+      const pageHTML = await fetchHTML(base + p + (p.endsWith('.html') ? '' : ''));
+      const text = extractMainText(pageHTML);
+      const prompt = `Generate metadata for this page. Return JSON with keys: title, description, ogTitle, ogDescription, keywords, canonical. Text: ${text}`;
+      // eslint-disable-next-line no-await-in-loop
+      const suggestion = await callOpenAI(prompt);
+      const name = pathToMetaName(p);
+      const payload = { ...suggestion, ...(overrides[name] || {}) };
+      fs.writeFileSync(path.join(outDir, `${name}.json`), JSON.stringify(payload, null, 2));
+    }
+    console.log(`Wrote metadata JSON to ./metadata for ${unique.length} paths`);
+    return;
+  }
+
+  files = globFiles(pattern).filter((f) => f.endsWith('.html'));
   if (files.length === 0) {
     console.log('No HTML files found.');
     process.exit(0);

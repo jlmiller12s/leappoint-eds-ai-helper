@@ -29,6 +29,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          node tools/generate-metadata.js --crawl "https://main--${{ github.event.repository.name }}--${{ github.repository_owner }}.aem.page" --limit=50
           node tools/generate-metadata.js --glob "${{ github.event.inputs.glob }}" --apply=true
       - name: Commit changes
         run: |
