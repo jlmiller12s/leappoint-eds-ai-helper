@@ -1,0 +1,45 @@
+name: AI Metadata Suggestions
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**/*.html'
+
+jobs:
+  suggest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        run: npm ci || npm i
+      - name: Generate metadata suggestions
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          node tools/generate-metadata.js --glob "**/*.html" --apply=false
+      - name: Upload suggestions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metadata-suggestions
+          path: metadata/suggestions.json
+      - name: Comment suggestions on PR
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            AI metadata suggestions have been generated. Download the artifact `metadata-suggestions` for details. To apply, run locally:
+            
+            ```bash
+            node tools/generate-metadata.js --glob "**/*.html" --apply=true
+            git add -A && git commit -m "chore: apply AI metadata" && git push
+            ```
+
+
